@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login/Register & Gemini PDF Processor</title>
+  <style>
+    body {
+        font-family: sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f4f4f4;
+    }
+
+    .div-container {
+        width: 300px;
+        padding: 20px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    label {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    input[type="text"], input[type="password"], input[type="file"], textarea, button {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 16px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+    }
+
+    button {
+        background-color: #007bff;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    #user-info {
+        margin-top: 20px;
+        display: none;
+    }
+
+    #pdf-processor {
+        margin-top: 20px;
+        display: none;
+    }
+
+    .loading {
+        display: none;
+        text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="div-container">
+  <div id="login-form">
+    <h2>Login</h2>
+    <label for="username">Username:</label>
+    <input type="text" id="username">
+    <label for="password">Password:</label>
+    <input type="password" id="password">
+    <button id="login-button">Login</button>
+    <button id="toggle-register">Register</button>
+  </div>
+
+  <div id="register-form" style="display: none;">
+    <h2>Register</h2>
+    <label for="reg-username">Username:</label>
+    <input type="text" id="reg-username">
+    <label for="reg-password">Password:</label>
+    <input type="password" id="reg-password">
+    <button id="register-button">Register</button>
+    <button id="toggle-login">Login</button>
+  </div>
+
+  <div id="user-info">
+    <h2>Welcome</h2>
+    <p>Username: <span id="user-username"></span></p>
+    <button id="logout-button">Logout</button>
+  </div>
+
+  <!-- Gemini PDF Processor Integration -->
+  <div id="pdf-processor">
+    <h2>Gemini PDF Processor</h2>
+    <label for="pdfFile">Select PDF File:</label>
+    <input type="file" id="pdfFile" accept=".pdf">
+
+    <label for="prompt">Enter Job Description:</label>
+    <textarea id="prompt" rows="4"></textarea>
+
+    <button id="processButton">Process PDF</button>
+
+    <div class="loading" id="loading">Loading...</div>
+    <div>
+      <textarea id="result" rows="6" style="width: 100%;" readonly></textarea>
+
+    </div>
+  </div>
+
+  <script>
+    // Element references
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const userInfo = document.getElementById('user-info');
+    const userUsernameDisplay = document.getElementById('user-username'); // This will now display the username
+    const pdfProcessorDiv = document.getElementById('pdf-processor');
+    const logoutButton = document.getElementById('logout-button');
+    const registerButton = document.getElementById('register-button');
+    const toggleRegister = document.getElementById('toggle-register');
+    const toggleLogin = document.getElementById('toggle-login');
+
+    // Check if a user is already logged in
+    const storedUsername = sessionStorage.getItem('username');
+    if (storedUsername) {
+      showUserDashboard(storedUsername);
+    }
+
+    // Login button event listener
+    document.getElementById('login-button').addEventListener('click', () => {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      if (!username || !password) {
+        alert('Username and password are required.');
+        return;
+      }
+
+      fetch('http://localhost:8080/login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Login failed');
+          }
+          return response.json();
+        })
+        .then(() => {
+          // Store the username directly from login input in session storage
+          sessionStorage.setItem('username', username);
+
+          // Display the dashboard with the entered username
+          showUserDashboard(username);
+        })
+        .catch(error => {
+          alert(`Error: ${error.message}`);
+          console.error(error);
+        });
+    });
+
+    // Register button event listener
+    registerButton.addEventListener('click', () => {
+      const username = document.getElementById('reg-username').value.trim();
+      const password = document.getElementById('reg-password').value.trim();
+
+      if (!username || !password) {
+        alert('Username and password are required.');
+        return;
+      }
+
+      registerButton.disabled = true; // Prevent multiple clicks
+
+      fetch('http://localhost:8080/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      })
+        .then(response => {
+          registerButton.disabled = false; // Re-enable button
+          if (response.ok) {
+            alert('Registration successful. Please log in.');
+            toggleFormVisibility('login');
+          } else {
+            return response.text().then(text => {
+              alert(`Registration failed: ${text}`);
+            });
+          }
+        })
+        .catch(error => {
+          registerButton.disabled = false; // Re-enable button
+          alert(`An error occurred during registration: ${error.message}`);
+          console.error(error);
+        });
+    });
+
+    // Logout button event listener
+    logoutButton.addEventListener('click', () => {
+      sessionStorage.removeItem('username');
+      loginForm.style.display = 'block';
+      registerForm.style.display = 'none';
+      userInfo.style.display = 'none';
+      pdfProcessorDiv.style.display = 'none';
+    });
+
+    // Toggle between login and register forms
+    toggleRegister.addEventListener('click', () => toggleFormVisibility('register'));
+    toggleLogin.addEventListener('click', () => toggleFormVisibility('login'));
+
+    // Helper function to show user dashboard
+    function showUserDashboard(username) {
+      loginForm.style.display = 'none';
+      registerForm.style.display = 'none';
+      userInfo.style.display = 'block';
+      pdfProcessorDiv.style.display = 'block';
+
+      // Display the username in the welcome section
+      userUsernameDisplay.textContent = username;
+    }
+
+    // Helper function to toggle between login and register forms
+    function toggleFormVisibility(form) {
+      if (form === 'login') {
+        loginForm.style.display = 'block';
+        registerForm.style.display = 'none';
+      } else {
+        loginForm.style.display = 'none';
+        registerForm.style.display = 'block';
+      }
+    }
+  </script>
+
+
+  <script>
+    document.getElementById('processButton').addEventListener('click', function() {
+        const fileInput = document.getElementById('pdfFile');
+        const promptInput = document.getElementById('prompt');
+        const resultTextarea = document.getElementById('result'); // Reference to the textarea
+        const loadingDiv = document.getElementById('loading');
+
+        const file = fileInput.files[0];
+        const prompt = promptInput.value;
+
+        if (!file || !prompt) {
+            alert('Please select a PDF file and enter a prompt.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('prompt', prompt);
+
+        loadingDiv.style.display = 'block';
+        resultTextarea.value = ''; // Clear previous results
+
+        fetch('http://localhost:8080/processPdf', { // Adjust the URL if needed
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.text())
+        .then(data => {
+            // Store the response in a variable
+            const responseData = data;
+
+            // Display the response in the textarea
+            resultTextarea.value = responseData;
+        })
+        .catch(error => {
+            resultTextarea.value = 'Error: ' + error.message;
+        })
+        .finally(() => {
+            loadingDiv.style.display = 'none';
+        });
+    });
+  </script>
+</body>
+</html>
