@@ -27,12 +27,14 @@
             padding: 20px;
             background-color: white;
             border-radius: 8px;
+            display: block;
             box-shadow: 0 2px 4px rgba(0, 0, 0,0.1);
             }
 
         .div-container2 {
         margin: 50px 20px 20px 20px;
             width: 100%;
+            heignt: 100%
             padding: 20px;
             align-items: left;
             background-color: white;
@@ -127,9 +129,9 @@
     <table class="div-container2" border="1" style="width: 100%; border-collapse: collapse;">
         <thead>
         <tr>
-            <th style="width: 10%;height: 40%;">Field</th>
-            <th style="width: 5%;height:40%;">Score</th>
-            <th style="width: 100%;height:40%;">Suggestions</th>
+            <th style="width: 10%;height: 100%;">Field</th>
+            <th style="width: 5%;height:100%;">Score</th>
+            <th style="width: 100%;height:100%;">Suggestions</th>
         </tr>
         </thead>
         <tbody id="outputBody"></tbody>
@@ -303,10 +305,12 @@
                  scoreCell.textContent = value.score || 'N/A';
 
                  const suggestionsCell = document.createElement('td');
-                 const inputBox = document.createElement('input');
+                 const inputBox = document.createElement('textarea');
                  inputBox.type = 'text';
                  inputBox.value = value.suggestions || 'No suggestions available';
                  inputBox.style.width = '100%';
+                 inputBox.style.wordWrap = 'break-word'; // Enable text wrapping
+                 inputBox.style.whiteSpace = 'pre-wrap';
                  inputBox.style.height = '100%';
 
                  suggestionsCell.appendChild(inputBox);
